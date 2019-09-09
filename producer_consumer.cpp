@@ -12,15 +12,18 @@
         exit(EXIT_FAILURE); \
 }
 
+
 using namespace std;
 
 int buffer[size_max];
 
 typedef struct parameter{
-	int number_passed;
-	int position_for_number;
+	int iteration_passed;
+	int position_for_number;                                                /* Acho que nem vais er usado */
+        int max_size_list;
 }parameter_produce;
 
+list <int> listing;
 
 /* 
  * Use in producer
@@ -51,36 +54,40 @@ void* produce(void *v){
 int main(int argc, char *argv[]){
 	parameter_produce *acess;
 	int check_thread;
+        int number_producer, number_consumer;
         /* Receive per parameter */
-	acess->number_passed = atoi(argv[1]);
-	acess->position_for_number = atoi(argv[2]);
-	
+	acess->iteration_passed = atoi(argv[1]);
+	//acess->position_for_number = atoi(argv[2]);                         /* Acho que sera desnecessario */
+	number_producer = atoi(argv[2]);
+	number_consumer = atoi(argv[3]);
+        acess->max_size_list = atoi(argv[4]);
+
 	cout << "pass" << endl;
-	pthread_t ts_producer, ts_consumer;
+	pthread_t ts_producer[number_producer], ts_consumer[number_consumer];
 
 	for(int i = 0; i < size_max; ++i)				/* Clean buffer first time */
 		buffer[i] = 0;
 
 	cout << "pass" << endl;
-	check_thread = pthread_create(&ts_producer, NULL, produce, (void*)acess);
-	if(check_thread)
-		DIE("Not create threads\n");
+        for(int i = 0; i < number_producer; ++i){
+  	  check_thread = pthread_create(&ts_producer, NULL, produce, (void*)acess);
+	  if(check_thread)
+	    DIE("Not create threads\n");
+        }
 
-
-	cout << "pass" << endl;
-	list <int> l;
-	l.push_back(0);
-
-	for(int i = 0; i < 10; i++)
-		listing1.push_back(i*2);	
-
-/*	
-	list <int> :: iterator it;
-	for(it = listing1.begin(); it != listing1.end(); ++it)
-		cout << 't' << *it;
-*/	
 	pthread_join(ts_producer, NULL);
-	
+       
+        cout << "aham" << endl; 
+        cout << listing.max_size() << endl;        
+        cout << listing.empty() << endl; 
+        listing.push_back(10);
+        cout << listing.empty() << endl; 
+        cout << listing.back() << endl;
+        list <int> :: iterator i = listing.end();
+        cout << i << endl;
+        cout << listing.size() << endl;
+        if(listing.max_size() == 10)
+                cout << "aham" << endl;
 	return 0;
 }
 
