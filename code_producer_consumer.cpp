@@ -66,6 +66,7 @@ void *consumer(void *v){
                 bool check = false;
                 if(buffer.front() == -1){
                         cout << "TIRA: --> " << buffer.front() << endl;
+                        pthread_mutex_unlock(&lock);
                         break;
                 }
                 check = number_cousin(buffer.front());
