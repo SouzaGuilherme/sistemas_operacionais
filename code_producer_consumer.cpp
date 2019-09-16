@@ -21,63 +21,65 @@ using namespace std;
 
 list <int> buffer;
 pthread_mutex_t lock;
+pthread_cond_t more;
+pthread_cond_t notice;
 
 bool number_cousin(int number);
-
+void *consumer(void *v);
 void *produce(void *v){
         parameter_produce *acess = (parameter_produce*)v;
         int iterations_producer = 0;
 
-        srand(time(nullptr));							/* Seed for rand() based in hour */				
+        //srand(time(nullptr));							/* Seed for rand() based in hour */				
         while(iterations_producer < acess->iteration_passed){
                 /* Posso usar um enquanto */
-                if(buffer.size() == acess->max_size_list)
-                        cout << "wait" << endl;
 
                 pthread_mutex_lock(&lock);
+                if(buffer.size() == acess->max_size_list)
+                        pthread_cond_wait(&notice, &lock);
+                //pthread_mutex_lock(&lock);
                 /* Start section critic */
                 buffer.push_back(rand());
                 /* Finish section critic */
                 pthread_mutex_unlock(&lock);
 
+                pthread_cond_signal(&more);
                 iterations_producer++;
         }
 }
 
 void *consumer(void *v){
         while(true){
-                cout << "vazia? " << buffer.empty() << endl;
-               /* while(buffer.empty() == true){
-                        cout << "preso vazioooooo" << endl;
-                        usleep(1); 
-                }*/
-                if(buffer.empty() == true){
-                        while(true){
-                                if(buffer.empty() == false){
-                                        cout << "saindo do vazio" << endl;
-                                        break;
-                                }
-                        }
-                }
-
                 pthread_mutex_lock(&lock);
 
-                cout << "Dentro? " << buffer.front() << endl;
+                while(buffer.empty() == true){
+                        pthread_cond_wait(&more, &lock);
+                }
+
+                //pthread_mutex_lock(&lock);
+
                 bool check = false;
-                if(buffer.front() == -1){
-                        cout << "TIRA: --> " << buffer.front() << endl;
+                int number_tmp = buffer.front();
+                buffer.pop_front();
+
+                pthread_t id_son = pthread_self();
+                if(number_tmp == -1){
                         pthread_mutex_unlock(&lock);
                         break;
                 }
-                check = number_cousin(buffer.front());
-                buffer.pop_front();
-                pthread_t id_son = pthread_self();
-                cout << "Thread ID: " << id_son << endl;                
 
                 pthread_mutex_unlock(&lock);
-                cout << "TO AQUI" << endl;
+                pthread_cond_signal(&notice);
+                check = number_cousin(number_tmp);
+                //buffer.pop_front();
+                //pthread_t id_son = pthread_self();
+                if(check == true)
+                        cout << "Thread ID: " << id_son << number_tmp << endl;                
+                //pthread_cond_signal(&notice);
+                //pthread_mutex_unlock(&lock);
+                //cout << "TO AQUI" << endl;
         }
-        cout << "indo embora" << endl;
+        //cout << "indo embora" << endl;
 }
 
 int main(int argc, char *argv[]){
@@ -141,11 +143,19 @@ int main(int argc, char *argv[]){
         }
         cout << "Passou producer" << endl;
 
-        for(int j = 0; j < number_consumer; j++)
+        for(int j = 0; j < number_consumer; j++){
+                pthread_mutex_lock(&lock);
+                if(buffer.size() == p_acess.max_size_list)
+                        pthread_cond_wait(&notice, &lock);
+
                 buffer.push_back(-1);
 
-        for(auto v : buffer)
-                cout << v << endl;
+                pthread_mutex_unlock(&lock);
+
+                pthread_cond_signal(&more);
+        }
+        /*for(auto v : buffer)
+                cout << v << endl;*/
         /* Join threads of consumers */
         for(int r = 0; r < number_consumer; r++){
                 cout << "preso join consumer "<< r << endl;
