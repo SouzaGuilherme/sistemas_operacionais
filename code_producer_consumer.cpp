@@ -7,80 +7,37 @@
 #include<iterator>
 #include<cstdlib>
 
+using namespace std;
+
 #define DIE(...) { \
         fprintf(stderr, __VA_ARGS__); \
         exit(EXIT_FAILURE); \
 }
 
+/* Parameters for send function produce/consumer */
 typedef struct parameter{
         int iteration_passed;
         int max_size_list;
 }parameter_produce;
 
-using namespace std;
-
+/* Declared Buffer, using list of C++ */
 list <int> buffer;
+
+/* Declared variable mutex */
 pthread_mutex_t lock;
+
+/* Declared variables of condition */
 pthread_cond_t more;
 pthread_cond_t notice;
 
+/* Function verify if is cousing */
 bool number_cousin(int number);
+
+/* Signiture of consumer */
 void *consumer(void *v);
-void *produce(void *v){
-        parameter_produce *acess = (parameter_produce*)v;
-        int iterations_producer = 0;
 
-        //srand(time(nullptr));							/* Seed for rand() based in hour */				
-        while(iterations_producer < acess->iteration_passed){
-                /* Posso usar um enquanto */
-
-                pthread_mutex_lock(&lock);
-                if(buffer.size() == acess->max_size_list)
-                        pthread_cond_wait(&notice, &lock);
-                //pthread_mutex_lock(&lock);
-                /* Start section critic */
-                buffer.push_back(rand());
-                /* Finish section critic */
-                pthread_mutex_unlock(&lock);
-
-                pthread_cond_signal(&more);
-                iterations_producer++;
-        }
-}
-
-void *consumer(void *v){
-        while(true){
-                pthread_mutex_lock(&lock);
-
-                while(buffer.empty() == true){
-                        pthread_cond_wait(&more, &lock);
-                }
-
-                //pthread_mutex_lock(&lock);
-
-                bool check = false;
-                int number_tmp = buffer.front();
-                buffer.pop_front();
-
-                pthread_t id_son = pthread_self();
-                if(number_tmp == -1){
-                        pthread_mutex_unlock(&lock);
-                        break;
-                }
-
-                pthread_mutex_unlock(&lock);
-                pthread_cond_signal(&notice);
-                check = number_cousin(number_tmp);
-                //buffer.pop_front();
-                //pthread_t id_son = pthread_self();
-                if(check == true)
-                        cout << "[" << id_son << " : " << number_tmp << "]" << endl;                
-                //pthread_cond_signal(&notice);
-                //pthread_mutex_unlock(&lock);
-                //cout << "TO AQUI" << endl;
-        }
-        //cout << "indo embora" << endl;
-}
+/* Signiture of produce */
+void *produce(void *v);
 
 int main(int argc, char *argv[]){
         /* ./producer_consumer <iterations> <number_producer> <number_consumer> <size_max_buffer> */
@@ -95,16 +52,14 @@ int main(int argc, char *argv[]){
         int number_consumer = atoi(argv[3]);
         p_acess.max_size_list = atoi(argv[4]);
 
-        /* Get ID of thread main */
-        pthread_t main_id = pthread_self();
-        cout << "main id: " << main_id << endl;
-
         pthread_t *thread_produce;
         pthread_t *thread_consumer;
 
         /* Start vaviables of conditions */
-        pthread_cond_init(&more, NULL);
-        pthread_cond_init(&notice, NULL);
+        if(pthread_cond_init(&more, NULL))
+                DIE("Erro'r in init variable of condition");
+        if(pthread_cond_init(&notice, NULL))
+                DIE("Erro'r in init variable of condition");
 
         if(((thread_produce = (pthread_t*)malloc(number_producer*sizeof(pthread_t))) == NULL)){
                 DIE("Erro'r alloc producers")
@@ -120,60 +75,102 @@ int main(int argc, char *argv[]){
                         DIE("Not created threads");
         }
 
-
-
-
-        /* ZONA DE TESTE */
-/*
-        cout << "Finish1" << endl;
-
-        list <int> :: iterator i;
-        for(i = buffer.begin(); i != buffer.end(); i++)
-                cout << *i << endl;
-*/
-        /* ------------------------------------- */
-
         /* Created of consumers */
         for(int i = 0; i < number_consumer; ++i){
                 if(pthread_create(&thread_consumer[i], NULL, consumer, (void*)&p_acess))
                         DIE("Not created threads producers");
         }
 
-
         /* Join threads of producers */
         for(int i = 0; i < number_producer; ++i){
                 if(pthread_join(thread_produce[i], NULL))
                         DIE("Not join threads");
         }
-        cout << "Passou producer" << endl;
 
+        /* Fill Buffer with -1 for finalize the consumers */
         for(int j = 0; j < number_consumer; j++){
+                /* Section critic */
                 pthread_mutex_lock(&lock);
                 if(buffer.size() == p_acess.max_size_list)
                         pthread_cond_wait(&notice, &lock);
 
                 buffer.push_back(-1);
-
+                /* Finish section critic */
                 pthread_mutex_unlock(&lock);
-
+                /* Signal of finish */
                 pthread_cond_signal(&more);
         }
-        /*for(auto v : buffer)
-                cout << v << endl;*/
+
         /* Join threads of consumers */
         for(int r = 0; r < number_consumer; r++){
-                cout << "preso join consumer "<< r << endl;
                 if(pthread_join(thread_consumer[r], NULL))
                         DIE("Not join threads consumers");
         }
 
-        cout << "Finish join" << endl;
-        pthread_cond_destroy(&more);
-        pthread_cond_destroy(&notice);
+        if(pthread_cond_destroy(&more))
+                DIE("Erro'r not destroy variable of codition");
+        if(pthread_cond_destroy(&notice))
+                DIE("Erro'r not destroy variable of codition");
 
         free(thread_produce);
         free(thread_consumer);
         cout << "Finish all" << endl;
+}
+
+/* Function produce */
+void *produce(void *v){
+        parameter_produce *acess = (parameter_produce*)v;
+        int iterations_producer = 0;
+
+        while(iterations_producer < acess->iteration_passed){
+
+                pthread_mutex_lock(&lock);
+                if(buffer.size() == acess->max_size_list)
+                        pthread_cond_wait(&notice, &lock);
+
+                /* Start section critic */
+                buffer.push_back(rand());
+                /* Finish section critic */
+                
+                pthread_mutex_unlock(&lock);
+
+                /* Send signal of finish */
+                pthread_cond_signal(&more);
+
+                iterations_producer++;
+        }
+}
+
+/* Function consumer */
+void *consumer(void *v){
+        while(true){
+                pthread_mutex_lock(&lock);
+
+                while(buffer.empty() == true)
+                        pthread_cond_wait(&more, &lock);
+
+                bool check = false;
+                int number_tmp = buffer.front();
+                buffer.pop_front();
+
+                pthread_t id_son = pthread_self();
+                if(number_tmp == -1){
+                        pthread_mutex_unlock(&lock);
+                        break;
+                }
+
+                pthread_mutex_unlock(&lock);
+
+                /* Signal your end */
+                pthread_cond_signal(&notice);
+
+                /* Verify if is cousin in parallel */
+                check = number_cousin(number_tmp);
+
+                /* Verify your answer, if yes, print, else continue */
+                if(check == true)
+                        cout << "[" << id_son << " : " << number_tmp << "]" << endl;                
+        }
 }
 
 /* Function verifyc if the number passed is cousin */
