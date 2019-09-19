@@ -74,7 +74,7 @@ void *consumer(void *v){
                 //buffer.pop_front();
                 //pthread_t id_son = pthread_self();
                 if(check == true)
-                        cout << "Thread ID: " << id_son << number_tmp << endl;                
+                        cout << "[" << id_son << " : " << number_tmp << "]" << endl;                
                 //pthread_cond_signal(&notice);
                 //pthread_mutex_unlock(&lock);
                 //cout << "TO AQUI" << endl;
@@ -101,6 +101,10 @@ int main(int argc, char *argv[]){
 
         pthread_t *thread_produce;
         pthread_t *thread_consumer;
+
+        /* Start vaviables of conditions */
+        pthread_cond_init(&more, NULL);
+        pthread_cond_init(&notice, NULL);
 
         if(((thread_produce = (pthread_t*)malloc(number_producer*sizeof(pthread_t))) == NULL)){
                 DIE("Erro'r alloc producers")
@@ -164,8 +168,11 @@ int main(int argc, char *argv[]){
         }
 
         cout << "Finish join" << endl;
-        //free(thread_produce);
-        //free(thread_consumer);
+        pthread_cond_destroy(&more);
+        pthread_cond_destroy(&notice);
+
+        free(thread_produce);
+        free(thread_consumer);
         cout << "Finish all" << endl;
 }
 
