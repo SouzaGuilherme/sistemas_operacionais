@@ -52,6 +52,8 @@ int main(int argc, char *argv[]){
         int number_consumer = atoi(argv[3]);
         p_acess.max_size_list = atoi(argv[4]);
 
+        pthread_t id_father = pthread_self();
+        cout << id_father << endl;
         pthread_t *thread_produce;
         pthread_t *thread_consumer;
 
